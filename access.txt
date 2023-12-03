@@ -1,0 +1,2 @@
+accessID=test
+accessKey=test
