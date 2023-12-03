@@ -29,22 +29,26 @@ def checkKey():
 def initCloud():
     global ec2, ssm, cloudwatch, sts
 
-    ec2 = boto3.client('ec2', regionName=regionName, accessID=accessID,
-                       accessKey=accessKey)
-    ssm = boto3.client('ssm', regionName=regionName, accessID=accessID,
-                       accessKey=accessKey)
-    cloudwatch = boto3.client('cloudwatch', regionName=regionName, accessID=accessID,
-                              accessKey=accessKey)
-    sts = boto3.client('sts', accessID=accessID, accessKey=accessKey)
+    try:
+        ec2 = boto3.client('ec2', regionName=regionName, accessID=accessID,
+                           accessKey=accessKey)
+        ssm = boto3.client('ssm', regionName=regionName, accessID=accessID,
+                           accessKey=accessKey)
+        cloudwatch = boto3.client('cloudwatch', regionName=regionName, accessID=accessID,
+                                  accessKey=accessKey)
+        sts = boto3.client('sts', accessID=accessID, accessKey=accessKey)
+    except Exception as e:
+        print(f"Error: {e}")
+        exit(-1)
 
 
 def printMenu():
     print("------------------------------------------------------------")
-    print("  1. list instance                2. available zones        ")
-    print("  3. start instance               4. available regions      ")
-    print("  5. stop instance                6. create instance        ")
-    print("  7. reboot instance              8. list images            ")
-    print("                                 99. quit                   ")
+    print("  1. List Instance                2. Available Zones        ")
+    print("  3. Start Instance               4. Available Regions      ")
+    print("  5. Stop Instance                6. Create Instance        ")
+    print("  7. Reboot Instance              8. List Images            ")
+    print("                                 99. Quit                   ")
     print("------------------------------------------------------------")
 
 
@@ -80,5 +84,78 @@ def runCommand(command):
         print(">> Invalid input.")
 
 
-printMenu()
-runCommand(getCommand())
+def listInstances():
+    print(">> [ List instances ]")
+
+    try:
+        for rsv in ec2.describe_instances()['Reservations']:
+            for inst in rsv['Instances']:
+                print(f"\t[id] {inst['InstanceId']}")
+                print(f"\t[AMI] {inst['ImageId']}")
+                print(f"\t[type] {inst['InstanceType']}")
+                print(f"\t[state] {inst['State']['Name']}")
+                print(f"\t[monitoring state] {inst['Monitoring']['State']}\n")
+    except Exception as e:
+        print(f">> Error: {e}")
+        exit(-1)
+
+
+def availableZones():
+    print(">> [ Available Zones ]")
+
+    try:
+        for zone in ec2.describe_availability_zones()['AvailabilityZones']:
+            print(f"\t[id] {zone['ZoneId']}")
+            print(f"\t[region] {zone['RegionName']}")
+            print(f"\t[zone] {zone['ZoneName']}\n")
+    except Exception as e:
+        print(f">> Error: {e}")
+        exit(-1)
+
+
+def startInstance():
+    print(">> [ Start Instance]")
+
+    try:
+        instanceID = input(">> Instance ID: ")
+
+        rsp = ec2.describe_instances(InstanceIds=[instanceID])
+        state = rsp['Reservations'][0]['Instances'][0]['State']['Name']
+
+        if state == 'stopped':
+            print(f">> Starting {instanceID}")
+            try:
+                ec2.start_instances(InstanceIds=[instanceID])
+                print(f">> Instance {instanceID} started.")
+            except Exception as e:
+                print(f">> Error: {e}")
+        elif state == 'running':
+            print(f">> Instance {instanceID} is already running.")
+        else:
+            print(f">> Instance {instanceID} cannot started.")
+            print(f">> Current State: {state}")
+    except Exception as e:
+        print(f">> Error: {e}")
+        exit(-1)
+
+
+def availableRegions():
+    print(">> [ Available Regions ]")
+
+    try:
+        for region in ec2.describe_regions()['Regions']:
+            print(f"\t[region] {region['RegionName']}")
+            print(f"\t[endpoint] {region['Endpoint']}\n")
+    except Exception as e:
+        print(f">> Error: {e}")
+        exit(-1)
+
+
+def run():
+    checkKey()
+    initCloud()
+    printMenu()
+    runCommand(getCommand())
+
+
+run()
