@@ -21,9 +21,10 @@ def checkKey():
         accessKey = sys.argv[2]
         regionName = sys.argv[3]
 
-    print(f"Access ID: {accessID}")
-    print(f"Access Key: {accessKey}")
-    print(f"Region Name: {regionName}")
+    print(">> [ Initial Information ]")
+    print(f"\tAccess ID: {accessID}")
+    print(f"\tAccess Key: {accessKey}")
+    print(f"\tRegion Name: {regionName}")
 
 
 def initCloud():
@@ -38,7 +39,7 @@ def initCloud():
                                   accessKey=accessKey)
         sts = boto3.client('sts', accessID=accessID, accessKey=accessKey)
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error: {e}.")
         exit(-1)
 
 
@@ -57,7 +58,7 @@ def getCommand():
         command = int(input(">> Command: "))
         return command
     except Exception as e:
-        print(f">> Error: {e}")
+        print(f">> Error: {e}.")
         exit(-1)
 
 
@@ -90,13 +91,13 @@ def listInstances():
     try:
         for rsv in ec2.describe_instances()['Reservations']:
             for inst in rsv['Instances']:
-                print(f"\t[id] {inst['InstanceId']}")
-                print(f"\t[AMI] {inst['ImageId']}")
-                print(f"\t[type] {inst['InstanceType']}")
-                print(f"\t[state] {inst['State']['Name']}")
-                print(f"\t[monitoring state] {inst['Monitoring']['State']}\n")
+                print(f"\tInstance ID: {inst['InstanceId']}")
+                print(f"\tInstance Type: {inst['InstanceType']}")
+                print(f"\tState: {inst['State']['Name']}")
+                print(f"\tImage ID: {inst['ImageId']}")
+                print(f"\tMonitoring State: {inst['Monitoring']['State']}\n")
     except Exception as e:
-        print(f">> Error: {e}")
+        print(f">> Error: {e}.")
         exit(-1)
 
 
@@ -105,11 +106,11 @@ def availableZones():
 
     try:
         for zone in ec2.describe_availability_zones()['AvailabilityZones']:
-            print(f"\t[id] {zone['ZoneId']}")
-            print(f"\t[region] {zone['RegionName']}")
-            print(f"\t[zone] {zone['ZoneName']}\n")
+            print(f"\tZone ID: {zone['ZoneId']}")
+            print(f"\tZone Name: {zone['ZoneName']}\n")
+            print(f"\tRegion Name:  {zone['RegionName']}")
     except Exception as e:
-        print(f">> Error: {e}")
+        print(f">> Error: {e}.")
         exit(-1)
 
 
@@ -123,19 +124,20 @@ def startInstance():
         state = rsp['Reservations'][0]['Instances'][0]['State']['Name']
 
         if state == 'stopped':
-            print(f">> Starting {instanceID}")
+            print(f">> Start {instanceID}.")
             try:
                 ec2.start_instances(InstanceIds=[instanceID])
                 print(f">> Instance {instanceID} started.")
             except Exception as e:
-                print(f">> Error: {e}")
+                print(f">> Error: {e}.")
+                exit(-1)
         elif state == 'running':
             print(f">> Instance {instanceID} is already running.")
         else:
             print(f">> Instance {instanceID} cannot started.")
             print(f">> Current State: {state}")
     except Exception as e:
-        print(f">> Error: {e}")
+        print(f">> Error: {e}.")
         exit(-1)
 
 
@@ -144,10 +146,84 @@ def availableRegions():
 
     try:
         for region in ec2.describe_regions()['Regions']:
-            print(f"\t[region] {region['RegionName']}")
-            print(f"\t[endpoint] {region['Endpoint']}\n")
+            print(f"\tRegion Name: {region['RegionName']}")
+            print(f"\tEndpoint: {region['Endpoint']}\n")
     except Exception as e:
-        print(f">> Error: {e}")
+        print(f">> Error: {e}.")
+        exit(-1)
+
+
+def stopInstance():
+    print(">> [ Stop Instance ]")
+
+    try:
+        instanceID = int(input('Instance ID: '))
+        print(f">> Stop {instanceID}.")
+
+        try:
+            ec2.stop_instances(InstanceIds=[instanceID])
+            print(f">> Instance {instanceID} stopped.")
+        except Exception as e:
+            print(f">> Error: {e}.")
+            exit(-1)
+    except Exception as e:
+        print(f">> Error: {e}.")
+        exit(-1)
+
+
+def createInstance():
+    print(">> [ Create Instance ]")
+
+    try:
+        AMI = input(">> AMI ID: ")
+        instanceType = input(">> Instance Type(whitespace for t3.micro): ")
+
+        if instanceType == '':
+            instanceType = 't3.micro'
+
+        print(f">> Create instance with AMI: {AMI}")
+
+        try:
+            instanceID = \
+                ec2.run_instances(ImageId=AMI, InstanceType=instanceType, MaxCount=1, MinCount=1)['Instances'][0][
+                    'InstanceId']
+            print(f"Successfully created EC2 instance {instanceID} based on AMI {AMI}")
+        except Exception as e:
+            print(f">> Error {e}.")
+            exit(-1)
+    except Exception as e:
+        print(f">> Error {e}.")
+        exit(-1)
+
+
+def rebootInstance():
+    print(">> [ Reboot Instance ]")
+
+    try:
+        instanceID = input(">> Instance ID: ")
+        print(f"Reboot {instanceID}.")
+        try:
+            ec2.reboot_instances(InstanceIds=[instanceID])
+            print(f"Instance {instanceID} rebooted.")
+        except Exception as e:
+            print(f">> Error {e}.")
+            exit(-1)
+    except Exception as e:
+        print(f">> Error: {e}.")
+        exit(-1)
+
+
+def listImages():
+    print(">>[ List Images ]")
+
+    try:
+        imgs = ec2.describe_images(Owners=[sts.get_caller_identity().get('Account')])
+        for i in imgs['Images']:
+            print(f"\tImageID: {i['ImageId']}")
+            print(f"\tName: {i['Name']}")
+            print(f"\tOwner: {i['OwnerId']}\n")
+    except Exception as e:
+        print(f">> Error: {e}.")
         exit(-1)
 
 
