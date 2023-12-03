@@ -1,5 +1,6 @@
 import sys
 import boto3
+from datetime import datetime, timedelta
 
 ec2, ssm, cloudwatch, sts = None, None, None, None
 accessID, accessKey = None, None
@@ -49,6 +50,7 @@ def printMenu():
     print("  3. Start Instance               4. Available Regions      ")
     print("  5. Stop Instance                6. Create Instance        ")
     print("  7. Reboot Instance              8. List Images            ")
+    print("  9. execute command              0. instance monitoring    ")
     print("                                 99. Quit                   ")
     print("------------------------------------------------------------")
 
@@ -120,8 +122,8 @@ def startInstance():
     try:
         instanceID = input(">> Instance ID: ")
 
-        rsp = ec2.describe_instances(InstanceIds=[instanceID])
-        state = rsp['Reservations'][0]['Instances'][0]['State']['Name']
+        resp = ec2.describe_instances(InstanceIds=[instanceID])
+        state = resp['Reservations'][0]['Instances'][0]['State']['Name']
 
         if state == 'stopped':
             print(f">> Start {instanceID}.")
@@ -224,6 +226,94 @@ def listImages():
             print(f"\tOwner: {i['OwnerId']}\n")
     except Exception as e:
         print(f">> Error: {e}.")
+        exit(-1)
+
+
+def executeCommand():
+    print(">>[ Execute Command ]")
+
+    try:
+        instanceID = input(">> Instance ID: ")
+        command = input(">> Command: ")
+
+        params = {'commands': [command], 'executionTimeout': ['3600'], }
+        timeout = 15
+
+        resp = ssm.send_command(
+            InstanceIds=[instanceID],
+            DocumentName="AWS-RunShellScript",
+            Parameters=params,
+            TimeoutSeconds=timeout)
+        try:
+            commandID = resp['Command']['CommandId']
+            output = ssm.get_command_invocation(
+                CommandId=commandID,
+                InstanceId=instanceID,
+            )
+            print(f">> {output['StandardOutputContent']}")
+        except Exception as e:
+            print(f">> Error: {e}")
+            exit(-1)
+    except Exception as e:
+        print(f">> Error: {e}.")
+        exit(-1)
+
+
+def instanceMonitoring():
+    print(">> [ Instance Monitoring ]")
+
+    try:
+        instanceID = input(">> Instance ID: ")
+        print(">> [ Instance Status ]")
+        try:
+            for status in ec2.describe_instance_status(InstanceIds=[instanceID])['InstanceStatuses']:
+                print(f"\tInstance ID: {status['InstanceId']}")
+                print(f"\tInstance Status: {status['InstanceStatus']['Status']}")
+                print(f"\tInstance State: {status['InstanceState']['Name']}")
+                print(f"\tSystem Status: {status['SystemStatus']['Status']}")
+                print(f"\tAvailability Zone: {status['AvailabilityZone']}\n")
+            try:
+                data = cloudwatch.get_metric_data(
+                    MetricDataQueries=[
+                        {
+                            'Id': 'm1',
+                            'MetricStat': {
+                                'Metric': {
+                                    'Namespace': 'AWS/EC2',
+                                    'MetricName': 'CPUUtilization',
+                                    'Dimensions': [
+                                        {
+                                            'Name': 'InstanceId',
+                                            'Value': instanceID
+                                        },
+                                    ]
+                                },
+                                'Period': 300,
+                                'Stat': 'Average',
+                            },
+                            'ReturnData': True,
+                        },
+                    ],
+                    StartTime=int((datetime.utcnow() - timedelta(seconds=600)).timestamp()),
+                    EndTime=int(datetime.utcnow().timestamp()),
+                )
+
+                print(">> [ Monitoring Data ]")
+                for d in data['MetricDataResults']:
+                    print(f"\tQuery ID: {d['Id']}")
+                    print(f"\t>> [ Metric Data ]")
+                    for t, v in zip(d['Timestamps'], d['Values']):
+                        formatted = datetime.utcfromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')
+                        print(f"\2tTime: {formatted}")
+                        print(f"\2tValue: {v}\n")
+            except Exception as e:
+                print(f">> Error: {e}")
+                exit(-1)
+        except Exception as e:
+            print(f">> Error: {e}")
+            exit(-1)
+    except Exception as e:
+        print(f">> Error: {e}")
         exit(-1)
 
 
