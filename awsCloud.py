@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 ec2, ssm, cloudwatch, sts = None, None, None, None
 accessID, accessKey = None, None
 regionName = 'eu-north-1'
-
+command = 0
 
 def checkKey():
     global accessID, accessKey, regionName
@@ -341,8 +341,15 @@ def instanceMonitoring():
 def run():
     checkKey()
     initCloud()
-    printMenu()
-    runCommand(getCommand())
 
+    while True:
+        printMenu()
+        command = getCommand()
+
+        if command == 99:
+            print(">> Quit Program.")
+            break  
+
+        runCommand(command)
 
 run()
