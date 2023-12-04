@@ -1,10 +1,10 @@
 import sys
 import boto3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 ec2, ssm, cloudwatch, sts = None, None, None, None
 accessID, accessKey = None, None
-regionName = 'eu-north-1'
+regionName = 'us-east-2'
 command = 0
 
 def checkKey():
@@ -254,6 +254,7 @@ def listImages():
         exit(-1)
 
 
+# condor_status
 def executeCommand():
     print(">>[ Execute Command ]")
 
@@ -283,11 +284,20 @@ def executeCommand():
         print(f">> Error: {e}.")
         exit(-1)
 
-
+# instanceMonitoring using cloudwatch
 def instanceMonitoring():
     print(">> [ Instance Monitoring ]")
 
     try:
+        session = boto3.Session(
+            aws_access_key_id=accessID,
+            aws_secret_access_key=accessKey,
+            region_name=regionName
+        )
+
+        ec2 = session.client('ec2')
+        cloudwatch = session.client('cloudwatch')
+
         instanceID = input(">> Instance ID: ")
         print(">> [ Instance Status ]")
         try:
@@ -319,8 +329,8 @@ def instanceMonitoring():
                             'ReturnData': True,
                         },
                     ],
-                    StartTime=int((datetime.utcnow() - timedelta(seconds=600)).timestamp()),
-                    EndTime=int(datetime.utcnow().timestamp()),
+                    StartTime=int((datetime.now(timezone.utc) - timedelta(seconds=600)).timestamp()),
+                    EndTime=int(datetime.now(timezone.utc).timestamp()),
                 )
 
                 print(">> [ Monitoring Data ]")
@@ -329,8 +339,8 @@ def instanceMonitoring():
                     print(f"\t>> [ Metric Data ]")
                     for t, v in zip(d['Timestamps'], d['Values']):
                         formatted = datetime.utcfromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S')
-                        print(f"\2tTime: {formatted}")
-                        print(f"\2tValue: {v}\n")
+                        print(f"\tTime: {formatted}")
+                        print(f"\tValue: {v}\n")
             except Exception as e:
                 print(f">> Error: {e}")
                 exit(-1)
