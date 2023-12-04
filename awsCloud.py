@@ -102,6 +102,10 @@ def runCommand(command):
         rebootInstance()
     elif command == 8:
         listImages()
+    elif command == 9:
+        executeCommand()
+    elif command == 0:
+        instanceMonitoring()
     elif command == 99:
         print(">> Quit Program.")
     else:
@@ -130,8 +134,8 @@ def availableZones():
     try:
         for zone in ec2.describe_availability_zones()['AvailabilityZones']:
             print(f"\tZone ID: {zone['ZoneId']}")
-            print(f"\tZone Name: {zone['ZoneName']}\n")
-            print(f"\tRegion Name:  {zone['RegionName']}")
+            print(f"\tZone Name: {zone['ZoneName']}")
+            print(f"\tRegion Name:  {zone['RegionName']}\n")
     except Exception as e:
         print(f">> Error: {e}.")
         exit(-1)
@@ -180,7 +184,7 @@ def stopInstance():
     print(">> [ Stop Instance ]")
 
     try:
-        instanceID = int(input('Instance ID: '))
+        instanceID = input('Instance ID: ')
         print(f">> Stop {instanceID}.")
 
         try:
@@ -258,7 +262,7 @@ def executeCommand():
         command = input(">> Command: ")
 
         params = {'commands': [command], 'executionTimeout': ['3600'], }
-        timeout = 15
+        timeout = 30
 
         resp = ssm.send_command(
             InstanceIds=[instanceID],
